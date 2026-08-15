@@ -1,0 +1,8 @@
+import{Router}from"express";import{pool}from"../db.js";import{requireAuth}from"../middleware/auth.js";const r=Router();
+r.get("/",requireAuth,async(req,res)=>{const [s,d,l,a,j]=await Promise.all([
+pool.query(`SELECT (SELECT COUNT(*) FROM employees WHERE status='active') active_employees,(SELECT COUNT(*) FROM departments) departments,(SELECT COUNT(*) FROM leave_requests WHERE status='pending') pending_leave,(SELECT COUNT(*) FROM job_openings WHERE status='open') open_jobs`),
+pool.query(`SELECT d.name,COUNT(e.id) employee_count FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.status='active' GROUP BY d.id ORDER BY d.name`),
+pool.query(`SELECT lr.*,e.first_name||' '||COALESCE(e.last_name,'') employee_name,lt.name leave_type FROM leave_requests lr JOIN employees e ON e.id=lr.employee_id JOIN leave_types lt ON lt.id=lr.leave_type_id WHERE lr.status='pending' ORDER BY lr.created_at LIMIT 8`),
+pool.query(`SELECT a.*,e.first_name||' '||COALESCE(e.last_name,'') employee_name FROM attendance a JOIN employees e ON e.id=a.employee_id WHERE a.attendance_date=CURRENT_DATE ORDER BY a.clock_in`),
+pool.query(`SELECT j.*,d.name department_name FROM job_openings j LEFT JOIN departments d ON d.id=j.department_id WHERE j.status='open' ORDER BY j.closing_date NULLS LAST LIMIT 6`)
+]);res.json({summary:s.rows[0],departments:d.rows,pendingLeave:l.rows,todayAttendance:a.rows,openJobs:j.rows})});export default r;
